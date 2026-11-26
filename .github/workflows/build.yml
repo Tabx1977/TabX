@@ -1,0 +1,72 @@
+# Builds and tests TabX on every push, and on a version tag (v1.0 and so on)
+# makes a release with the binaries attached.
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust
+        run: rustup update stable && rustup default stable
+      - name: Tests
+        env:
+          RUSTFLAGS: -C target-cpu=x86-64-v3
+        run: cargo test --release
+
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        level: [x86-64-v3, x86-64-v2]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust
+        shell: bash
+        run: rustup update stable && rustup default stable
+      - name: Build
+        shell: bash
+        # Overrides the target-cpu=native of .cargo/config.toml: the binary
+        # has to run on other machines than this one.
+        env:
+          RUSTFLAGS: -C target-cpu=${{ matrix.level }}
+        run: cargo build --release
+      - name: Package
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then system=windows; exe=.exe; else system=linux; exe=; fi
+          version="${GITHUB_REF_NAME//\//-}"
+          name="tabx-$version-$system-${{ matrix.level }}$exe"
+          mkdir dist
+          cp "target/release/tabx$exe" "dist/$name"
+          "dist/$name" bench
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tabx-${{ runner.os }}-${{ matrix.level }}
+          path: dist/*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \
+            --title "TabX $GITHUB_REF_NAME" --generate-notes

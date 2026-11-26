@@ -1,0 +1,9 @@
+/target
+/tools
+/data
+/engines
+*.pgn
+*.log
+/trainer/target
+/trainer/checkpoints
+__pycache__/

@@ -1,0 +1,4 @@
+# Local builds target the machine they are built on (AVX2, BMI2, POPCNT...).
+# Binaries built this way are not portable to older CPUs.
+[build]
+rustflags = ["-C", "target-cpu=native"]

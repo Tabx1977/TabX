@@ -1,0 +1,37 @@
+[package]
+name = "tabx"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+
+[dependencies]
+
+[dev-dependencies]
+shakmaty = "0.30.3"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+debug = false
+
+# Debug builds keep overflow checks and debug assertions but are optimised
+# enough for perft-heavy tests to finish quickly.
+[profile.dev]
+opt-level = 2
+
+# The build script precomputes attack tables; always build it optimised.
+[profile.dev.build-override]
+opt-level = 3
+[profile.release.build-override]
+opt-level = 3
+
+# `cargo build --profile profiling` keeps symbols for perf / flamegraphs.
+[profile.profiling]
+inherits = "release"
+debug = true
+
+[features]
+# Exposes search parameters as UCI options for automatic tuning (scripts/spsa.py).
+tune = []
